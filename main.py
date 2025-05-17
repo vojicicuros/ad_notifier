@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Config from .env
+# Config from .env file
 KP_URL = "https://www.kupujemprodajem.com/kompjuteri-desktop/monitori/pretraga?keywords=2k&categoryId=10&" \
          "groupId=96&priceTo=150&currency=eur&condition=used&type=sell&period=today&hasPrice=yes&order=posted%20desc"
 CHECK_INTERVAL = 1800  # seconds
