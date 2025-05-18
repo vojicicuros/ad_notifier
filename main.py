@@ -102,12 +102,19 @@ def main():
 
     print("🚀 Starting Ad Notifier...")
 
+    # Get URLs from command-line args or fallback to kp_links.txt
     urls = sys.argv[1:]
     if not urls:
-        print("❌ No KP_URLs provided. Pass at least one URL as a command-line argument.")
-        sys.exit(1)
+        try:
+            with open("kp_links.txt", "r") as f:
+                urls = [line.strip() for line in f if line.strip()]
+                if not urls:
+                    raise Exception("kp_links.txt is empty.")
+                print(f"📄 Loaded {len(urls)} URL(s) from kp_links.txt")
+        except Exception as e:
+            print(f"❌ No KP_URLs provided and failed to read from kp_links.txt: {e}")
+            sys.exit(1)
 
-    # Initial run
     for url in urls:
         try:
             ads = fetch_ads(url)
@@ -121,10 +128,10 @@ def main():
                     save_seen_ad(ad[0])
             else:
                 print(f"✅ No new ads for URL: {url}")
+
         except Exception as e:
             print(f"❌ Error while fetching ads for {url}: {e}")
 
-    # Periodic check loop
     while True:
         try:
             time.sleep(CHECK_INTERVAL)
@@ -133,18 +140,19 @@ def main():
                 new_ads = [ad for ad in ads if ad[0] not in seen_ads]
 
                 if new_ads:
-                    print(f"🆕 Found {len(new_ads)} new ads for {url}")
+                    print(f"🆕 Found {len(new_ads)} new ads for URL: {url}")
                     body = format_ads_for_email(new_ads)
                     send_email(f"New KP Ads ({len(new_ads)})", body)
                     for ad in new_ads:
                         seen_ads.add(ad[0])
                         save_seen_ad(ad[0])
                 else:
-                    print(f"⏳ No new ads for {url}")
+                    print(f"⏳ No new ads for URL: {url}")
 
         except Exception as e:
-            print(f"❌ Error in loop: {e}")
+            print(f"❌ Error: {e}")
             time.sleep(60)
+
 
 if __name__ == "__main__":
     main()
