@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import requests
 from bs4 import BeautifulSoup
@@ -10,8 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Config
-KP_URL = "https://www.kupujemprodajem.com/kompjuteri-desktop/monitori/pretraga?keywords=4k&categoryId=10&groupId=96&priceFrom=80&priceTo=150&currency=eur&condition=used"
-CHECK_INTERVAL = 1800  # seconds
+CHECK_INTERVAL = 1800  # seconds (30 minutes)
 
 YOUR_EMAIL = os.getenv("YOUR_EMAIL")
 EMAIL_USERNAME = os.getenv("EMAIL_USERNAME")
@@ -37,11 +37,11 @@ seen_ads = load_seen_ads()
 
 # ---------- Core Logic ----------
 
-def fetch_ads():
+def fetch_ads(kp_url):
     headers = {
         "User-Agent": "Mozilla/5.0"
     }
-    response = requests.get(KP_URL, headers=headers)
+    response = requests.get(kp_url, headers=headers)
     if response.status_code != 200:
         raise Exception(f"Failed to fetch page: {response.status_code}")
 
@@ -78,7 +78,6 @@ def fetch_ads():
 
     return ads
 
-
 def send_email(subject, body):
     msg = MIMEText(body, 'plain')
     msg['Subject'] = subject
@@ -91,56 +90,61 @@ def send_email(subject, body):
         server.send_message(msg)
     print("📧 Email sent.")
 
-
 def format_ads_for_email(ads):
     lines = []
     for ad_id, title, price, url in ads:
         line = f"{title} | {price}\n{url}"
         lines.append(line)
-    # Add two newlines between ads
     return "\n\n\n".join(lines)
-
 
 def main():
     global seen_ads
+
     print("🚀 Starting Ad Notifier...")
 
-    try:
-        ads = fetch_ads()
-        new_ads = [ad for ad in ads if ad[0] not in seen_ads]
+    urls = sys.argv[1:]
+    if not urls:
+        print("❌ No KP_URLs provided. Pass at least one URL as a command-line argument.")
+        sys.exit(1)
 
-        if new_ads:
-            body = format_ads_for_email(new_ads)
-            send_email("Initial KP Ads", body)
-            for ad in new_ads:
-                seen_ads.add(ad[0])
-                save_seen_ad(ad[0])
-        else:
-            print("✅ No new ads on initial run.")
-
-    except Exception as e:
-        print(f"❌ Error during initial fetch: {e}")
-
-    while True:
+    # Initial run
+    for url in urls:
         try:
-            time.sleep(CHECK_INTERVAL)
-            ads = fetch_ads()
+            ads = fetch_ads(url)
             new_ads = [ad for ad in ads if ad[0] not in seen_ads]
 
             if new_ads:
-                print(f"🆕 Found {len(new_ads)} new ads.")
                 body = format_ads_for_email(new_ads)
                 send_email(f"New KP Ads ({len(new_ads)})", body)
                 for ad in new_ads:
                     seen_ads.add(ad[0])
                     save_seen_ad(ad[0])
             else:
-                print("⏳ No new ads.")
+                print(f"✅ No new ads for URL: {url}")
+        except Exception as e:
+            print(f"❌ Error while fetching ads for {url}: {e}")
+
+    # Periodic check loop
+    while True:
+        try:
+            time.sleep(CHECK_INTERVAL)
+            for url in urls:
+                ads = fetch_ads(url)
+                new_ads = [ad for ad in ads if ad[0] not in seen_ads]
+
+                if new_ads:
+                    print(f"🆕 Found {len(new_ads)} new ads for {url}")
+                    body = format_ads_for_email(new_ads)
+                    send_email(f"New KP Ads ({len(new_ads)})", body)
+                    for ad in new_ads:
+                        seen_ads.add(ad[0])
+                        save_seen_ad(ad[0])
+                else:
+                    print(f"⏳ No new ads for {url}")
 
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"❌ Error in loop: {e}")
             time.sleep(60)
-
 
 if __name__ == "__main__":
     main()
