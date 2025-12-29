@@ -1,4 +1,4 @@
-# KupujemProdajem Ad Notifier
+# Ad Notifier for online classified ads website in Serbia
 
 ## Overview
 
@@ -8,7 +8,7 @@ This Python script monitors new ads on kupujemprodajem.rs for specific search cr
 
 ## Features
 
-- Periodically checks the specified Kupujemprodajem search page for new ads  
+- Periodically checks the specified website search page for new ads  
 - Sends email notifications with details of new ads found  
 - Persists seen ads in a local file to avoid repeated alerts  
 - Fully configurable via environment variables  
